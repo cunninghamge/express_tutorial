@@ -59,24 +59,34 @@ app.post('/api/v1/papers', (request, response) => {
     });
 });
 
-app.post('/api/v1/footnotes', (request, response) => {
-  const footnote = request.body;
+app.post('/api/v1/:paper_id/footnotes', (request, response) => {
+  database('papers').where('id', request.params.paper_id).select()
+    .then(paper => {
+      if (paper.length) {
+        const footnote = request.body;
+        footnote.paper_id = request.params.paper_id;
 
-  for (let requiredParameter of ['note', 'paper_id']) {
-    if (!footnote[requiredParameter]) {
-      return response
-        .status(422)
-        .send({ error: `Expected format: { title: <String>, author: <String> }. You're missing a "${requiredParameter}" property.` });
-    }
-  }
+        for (let requiredParameter of ['note']) {
+          if (!footnote[requiredParameter]) {
+            return response
+              .status(422)
+              .send({ error: `Expected format: { note: <String> }. You're missing a "${requiredParameter}" property.` });
+          }
+        }
 
-  database('footnotes').insert(footnote, 'id')
-    .then(footnote => {
-      response.status(201).json({ id: footnote[0] })
+        database('footnotes').insert(footnote, 'id')
+          .then(footnote => {
+            response.status(201).json({ id: footnote[0] })
+          })
+          .catch(error => {
+            response.status(500).json({ error });
+          });
+      } else {
+        response.status(404).json({
+          error: `Could not find paper with id ${request.params.paper_id}`
+        });
+      }
     })
-    .catch(error => {
-      response.status(500).json({ error });
-    });
 });
 
 app.get('/api/v1/papers/:id', (request, response) => {
@@ -87,6 +97,22 @@ app.get('/api/v1/papers/:id', (request, response) => {
       } else {
         response.status(404).json({
           error: `Could not find paper with id ${request.params.id}`
+        });
+      }
+    })
+    .catch(error => {
+      response.status(500).json({ error });
+    });
+});
+
+app.get('/api/v1/:paper_id/footnotes', (request, response) => {
+  database('footnotes').where('paper_id', request.params.paper_id).select()
+    .then(footnotes => {
+      if (footnotes.length) {
+        response.status(200).json(footnotes);
+      } else {
+        response.status(404).json({
+          error: `Could not find paper with id ${request.params.paper_id}`
         });
       }
     })
